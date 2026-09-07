@@ -99,7 +99,7 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({ nodes, edges, se
         color: color,
         font: { color: '#94a3b8', size: 10, align: 'middle' },
         arrows: { to: { enabled: true, scaleFactor: 0.5 } }, // Add an arrowhead
-        smooth: { type: 'continuous' } // Curve the lines slightly for aesthetic appeal
+        smooth: { enabled: true, type: 'continuous', roundness: 0.5 } // Curve the lines slightly for aesthetic appeal
       };
     });
   };
