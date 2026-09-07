@@ -1,6 +1,6 @@
 import React from 'react';
-import { ShieldCheck, ShieldAlert, AlertTriangle, HelpCircle, CheckCircle2, XCircle } from 'lucide-react';
 import { VerificationSummary } from '../types';
+import { ShieldCheck, ShieldAlert, ShieldQuestion, Activity } from 'lucide-react';
 
 interface CredibilityScoreCardProps {
   summary: VerificationSummary;
@@ -8,129 +8,99 @@ interface CredibilityScoreCardProps {
   onFilterChange: (filter: string) => void;
 }
 
-export const CredibilityScoreCard: React.FC<CredibilityScoreCardProps> = ({
-  summary,
+export const CredibilityScoreCard: React.FC<CredibilityScoreCardProps> = ({ 
+  summary, 
   selectedFilter,
-  onFilterChange,
+  onFilterChange 
 }) => {
-  const score = summary.credibility_score;
-
-  const getScoreColor = (val: number) => {
-    if (val >= 75) return { text: 'text-emerald-400', bg: 'bg-emerald-500', border: 'border-emerald-500/30' };
-    if (val >= 50) return { text: 'text-amber-400', bg: 'bg-amber-500', border: 'border-amber-500/30' };
-    return { text: 'text-rose-400', bg: 'bg-rose-500', border: 'border-rose-500/30' };
-  };
-
-  const colors = getScoreColor(score);
+  // Determine which color theme to use for the main gauge based on the overall Credibility Score
+  const scoreColor = summary.credibility_score >= 75 ? 'text-emerald-400' 
+                   : summary.credibility_score >= 50 ? 'text-yellow-400' 
+                   : 'text-rose-400';
 
   return (
-    <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-xl">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-center">
-        {/* Score Gauge */}
-        <div className="flex items-center space-x-6">
-          <div className="relative w-28 h-28 flex items-center justify-center rounded-full bg-slate-950 border-4 border-slate-800 p-2 shadow-inner">
-            <div
-              className="absolute inset-0 rounded-full border-4 opacity-20"
-              style={{ borderColor: 'currentColor' }}
-            />
-            <div className="text-center">
-              <span className={`text-3xl font-extrabold tracking-tight ${colors.text}`}>
-                {score}%
-              </span>
-              <p className="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">
-                Credibility
-              </p>
-            </div>
-          </div>
-
-          <div>
-            <div className="flex items-center space-x-2 mb-1">
-              {score >= 75 ? (
-                <ShieldCheck className="w-5 h-5 text-emerald-400" />
-              ) : score >= 50 ? (
-                <AlertTriangle className="w-5 h-5 text-amber-400" />
-              ) : (
-                <ShieldAlert className="w-5 h-5 text-rose-400" />
-              )}
-              <span className={`font-bold text-lg ${colors.text}`}>
-                {summary.trust_rating}
-              </span>
-            </div>
-            <p className="text-xs text-slate-400 max-w-xs">
-              Based on claim-level matching against authoritative peer-reviewed reference graph.
-            </p>
-          </div>
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      
+      {/* 1. Main Score Gauge (Spans 1 column) */}
+      <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 shadow-xl backdrop-blur-sm flex flex-col justify-center items-center text-center">
+        <Activity className={`w-8 h-8 mb-3 ${scoreColor}`} />
+        <div className={`text-5xl font-black tracking-tight mb-2 ${scoreColor}`}>
+          {summary.credibility_score}%
         </div>
-
-        {/* Claim Status Metrics */}
-        <div className="grid grid-cols-3 gap-3">
-          <button
-            onClick={() => onFilterChange('VERIFIED')}
-            className={`p-3 rounded-xl border transition-all text-left cursor-pointer ${
-              selectedFilter === 'VERIFIED'
-                ? 'bg-emerald-950/60 border-emerald-500/60 shadow-lg shadow-emerald-500/10'
-                : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'
-            }`}
-          >
-            <div className="flex items-center justify-between text-emerald-400 mb-1">
-              <span className="text-xs font-semibold">Verified</span>
-              <CheckCircle2 className="w-4 h-4" />
-            </div>
-            <div className="text-2xl font-bold text-white">
-              {summary.verified_claims_count}
-            </div>
-            <div className="text-[10px] text-slate-400 font-medium">Matching sources</div>
-          </button>
-
-          <button
-            onClick={() => onFilterChange('CONTRADICTED')}
-            className={`p-3 rounded-xl border transition-all text-left cursor-pointer ${
-              selectedFilter === 'CONTRADICTED'
-                ? 'bg-rose-950/60 border-rose-500/60 shadow-lg shadow-rose-500/10'
-                : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'
-            }`}
-          >
-            <div className="flex items-center justify-between text-rose-400 mb-1">
-              <span className="text-xs font-semibold">Refuted</span>
-              <XCircle className="w-4 h-4" />
-            </div>
-            <div className="text-2xl font-bold text-white">
-              {summary.contradicted_claims_count}
-            </div>
-            <div className="text-[10px] text-slate-400 font-medium">Contradictions</div>
-          </button>
-
-          <button
-            onClick={() => onFilterChange('UNVERIFIED')}
-            className={`p-3 rounded-xl border transition-all text-left cursor-pointer ${
-              selectedFilter === 'UNVERIFIED'
-                ? 'bg-amber-950/60 border-amber-500/60 shadow-lg shadow-amber-500/10'
-                : 'bg-slate-950/60 border-slate-800 hover:border-slate-700'
-            }`}
-          >
-            <div className="flex items-center justify-between text-amber-400 mb-1">
-              <span className="text-xs font-semibold">Unverified</span>
-              <HelpCircle className="w-4 h-4" />
-            </div>
-            <div className="text-2xl font-bold text-white">
-              {summary.unverified_claims_count}
-            </div>
-            <div className="text-[10px] text-slate-400 font-medium">Pending proof</div>
-          </button>
+        <div className="text-sm font-bold text-slate-300 uppercase tracking-wider mb-1">
+          {summary.trust_rating}
         </div>
+        <div className="text-xs text-slate-500">Overall Video Credibility Score</div>
+      </div>
 
-        {/* Action / Filter Reset */}
-        <div className="flex justify-end lg:justify-center">
-          <button
+      {/* 2. Interactive Metrics Dashboard (Spans 3 columns) */}
+      <div className="md:col-span-3 bg-slate-900/60 border border-slate-800 rounded-2xl p-6 shadow-xl backdrop-blur-sm">
+        <h3 className="text-slate-400 text-sm font-semibold mb-4 uppercase tracking-wider">Claim Verification Analysis</h3>
+        
+        {/* Responsive Grid of Metric Filter Buttons */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 h-full pb-6">
+          
+          {/* ALL Filter Button */}
+          <button 
             onClick={() => onFilterChange('ALL')}
-            className={`px-4 py-2 text-xs font-semibold rounded-lg border transition-all cursor-pointer ${
-              selectedFilter === 'ALL'
-                ? 'bg-indigo-600 border-indigo-500 text-white shadow-md shadow-indigo-600/30'
-                : 'bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-700'
+            className={`p-4 rounded-xl text-left transition-all border ${
+              selectedFilter === 'ALL' 
+                ? 'bg-slate-800 border-slate-600 shadow-inner' 
+                : 'bg-slate-950/50 border-slate-800/60 hover:bg-slate-900 cursor-pointer'
             }`}
           >
-            Show All Claims & Nodes ({summary.total_claims})
+            <div className="text-3xl font-bold text-slate-200 mb-1">{summary.total_claims}</div>
+            <div className="text-xs font-semibold text-slate-500 uppercase">Total Claims Extracted</div>
           </button>
+          
+          {/* VERIFIED Filter Button */}
+          <button 
+            onClick={() => onFilterChange('VERIFIED')}
+            className={`p-4 rounded-xl text-left transition-all border ${
+              selectedFilter === 'VERIFIED' 
+                ? 'bg-emerald-950/40 border-emerald-500/50 shadow-inner' 
+                : 'bg-slate-950/50 border-slate-800/60 hover:bg-slate-900 cursor-pointer'
+            }`}
+          >
+            <div className="flex justify-between items-start mb-1">
+              <div className="text-3xl font-bold text-emerald-400">{summary.verified_claims_count}</div>
+              <ShieldCheck className="w-5 h-5 text-emerald-500/50" />
+            </div>
+            <div className="text-xs font-semibold text-emerald-500/80 uppercase">Verified Claims</div>
+          </button>
+          
+          {/* CONTRADICTED (False) Filter Button */}
+          <button 
+            onClick={() => onFilterChange('CONTRADICTED')}
+            className={`p-4 rounded-xl text-left transition-all border ${
+              selectedFilter === 'CONTRADICTED' 
+                ? 'bg-rose-950/40 border-rose-500/50 shadow-inner' 
+                : 'bg-slate-950/50 border-slate-800/60 hover:bg-slate-900 cursor-pointer'
+            }`}
+          >
+            <div className="flex justify-between items-start mb-1">
+              <div className="text-3xl font-bold text-rose-400">{summary.contradicted_claims_count}</div>
+              <ShieldAlert className="w-5 h-5 text-rose-500/50" />
+            </div>
+            <div className="text-xs font-semibold text-rose-500/80 uppercase">Contradicted Claims</div>
+          </button>
+          
+          {/* UNVERIFIED Filter Button */}
+          <button 
+            onClick={() => onFilterChange('UNVERIFIED')}
+            className={`p-4 rounded-xl text-left transition-all border ${
+              selectedFilter === 'UNVERIFIED' 
+                ? 'bg-yellow-950/40 border-yellow-500/50 shadow-inner' 
+                : 'bg-slate-950/50 border-slate-800/60 hover:bg-slate-900 cursor-pointer'
+            }`}
+          >
+            <div className="flex justify-between items-start mb-1">
+              <div className="text-3xl font-bold text-yellow-400">{summary.unverified_claims_count}</div>
+              <ShieldQuestion className="w-5 h-5 text-yellow-500/50" />
+            </div>
+            <div className="text-xs font-semibold text-yellow-500/80 uppercase">Unverified / Unmatched</div>
+          </button>
+
         </div>
       </div>
     </div>

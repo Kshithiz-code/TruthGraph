@@ -1,6 +1,8 @@
 import re
 from typing import Dict, Any, List
 
+# A dictionary containing pre-written transcripts for our demo videos.
+# This ensures the pipeline works smoothly during presentations even if YouTube blocks the transcript request.
 SAMPLE_TRANSCRIPTS = {
     "dQw4w9WgXcQ": """
 Welcome back. Today we are examining three massive technological claims.
@@ -27,18 +29,29 @@ Fourth, a common viral claim that volcanic eruptions release more annual CO2 tha
 def fetch_video_transcript(video_id: str) -> Dict[str, Any]:
     """
     FR2: Extract and pre-process the transcript of a selected YouTube video.
+    This function retrieves the raw subtitle/transcript data from YouTube and cleans it into a single string.
     """
     try:
+        # Import the library used to scrape transcripts directly from YouTube
         from youtube_transcript_api import YouTubeTranscriptApi
-        # Support both function call and class method formats depending on installed version
+        
+        # Depending on the installed version of the package, the method to fetch transcripts differs slightly.
+        # We check which method exists to ensure compatibility.
         if hasattr(YouTubeTranscriptApi, 'get_transcript'):
             api_transcript = YouTubeTranscriptApi.get_transcript(video_id)
         else:
             api_transcript = YouTubeTranscriptApi().fetch(video_id)
             
+        # Combine all the individual text segments (which usually come in 3-second chunks) into one massive string
         full_text = " ".join([item["text"] for item in api_transcript])
+        
+        # Clean up the text by replacing multiple spaces/newlines with a single space
         full_text = re.sub(r'\s+', ' ', full_text).strip()
+        
+        # Keep a few snippet objects (text with timestamps) for potential timeline features later
         snippets = [{"text": item["text"], "start": item["start"], "duration": item["duration"]} for item in api_transcript[:15]]
+        
+        # Return the structured dictionary for the next pipeline step
         return {
             "video_id": video_id,
             "transcript_text": full_text,
@@ -46,9 +59,10 @@ def fetch_video_transcript(video_id: str) -> Dict[str, Any]:
             "source": "live_youtube_api"
         }
     except Exception as e:
+        # If fetching fails (e.g., video has no captions, or YouTube IP blocked the server), catch the error.
         print(f"[Transcript Step] YouTubeTranscriptApi info: {e}.")
         
-        # If this is one of our hardcoded demo videos, use the fallback text
+        # If the user clicked on one of our hardcoded demo videos, we gracefully fall back to the built-in text
         if video_id in SAMPLE_TRANSCRIPTS:
             print("Falling back to built-in transcript store for demo video.")
             text = SAMPLE_TRANSCRIPTS[video_id]
@@ -60,7 +74,8 @@ def fetch_video_transcript(video_id: str) -> Dict[str, Any]:
                 "source": "curated_transcript_store"
             }
         else:
-            # If it's a real custom video, don't fake it! Bubble up the error text.
+            # If it's a completely new, custom video, we DO NOT fake the data. 
+            # We return an explicit error string as the transcript so the user knows it failed.
             return {
                 "video_id": video_id,
                 "transcript_text": f"Error: Could not retrieve transcript from YouTube. This video may not have captions enabled, or YouTube blocked the request. Details: {str(e)}",

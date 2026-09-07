@@ -1,201 +1,176 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Network as VisNetwork, Node as VisNode, Edge as VisEdge } from 'vis-network';
-import { DataSet } from 'vis-data';
-import { Network } from 'lucide-react';
+import React, { useEffect, useRef } from 'react';
+import { Network, Options } from 'vis-network/standalone/esm/vis-network';
 import { GraphNode, GraphEdge } from '../types';
 
 interface KnowledgeGraphProps {
   nodes: GraphNode[];
   edges: GraphEdge[];
-  selectedFilter: string;
+  selectedFilter: string; // Used to highlight specific nodes if the user clicked a filter tab
 }
 
 export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({ nodes, edges, selectedFilter }) => {
+  // We use a React Ref to target the empty div where vis-network will draw the canvas
   const containerRef = useRef<HTMLDivElement>(null);
-  const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
+  // We keep a reference to the network instance to clean it up when the component unmounts
+  const networkRef = useRef<Network | null>(null);
 
+  /**
+   * Helper function to style nodes dynamically based on their Type (Video, Claim, Entity, etc.)
+   * and based on the currently selected filter.
+   */
+  const processNodes = (rawNodes: GraphNode[], filter: string) => {
+    return rawNodes.map(node => {
+      let color = { background: '#334155', border: '#475569' }; // Default Slate Gray
+      let shape = 'dot';
+      let size = 15;
+      let opacity = 1.0;
+      let fontColor = '#f1f5f9'; // White text
+
+      // Apply distinct visual styling for different node types
+      if (node.type === 'video') {
+        color = { background: '#6366f1', border: '#818cf8' }; // Indigo for the central video
+        shape = 'hexagon';
+        size = 25;
+      } else if (node.type === 'trusted_source') {
+        color = { background: '#0284c7', border: '#38bdf8' }; // Sky Blue for trusted sources
+        shape = 'box';
+      } else if (node.type === 'claim') {
+        shape = 'dot';
+        size = 18;
+        // Color code claims based on their mathematical verification status
+        const status = node.data?.verification_status;
+        if (status === 'VERIFIED') color = { background: '#059669', border: '#34d399' }; // Emerald Green
+        else if (status === 'CONTRADICTED') color = { background: '#e11d48', border: '#fb7185' }; // Rose Red
+        else if (status === 'UNVERIFIED') color = { background: '#ca8a04', border: '#facc15' }; // Yellow
+        
+        // Dim this claim node if the user clicked a filter tab and this claim doesn't match
+        if (filter !== 'ALL' && status !== filter) {
+          opacity = 0.2;
+          fontColor = '#475569';
+        }
+      }
+
+      // Dim non-claim nodes if a specific filter is active, to reduce visual clutter
+      if (filter !== 'ALL' && node.type !== 'claim') {
+        opacity = 0.5;
+        fontColor = '#94a3b8';
+      }
+
+      // Return the vis.js formatted node object
+      return {
+        id: node.id,
+        label: node.label,
+        shape: shape,
+        size: size,
+        color: { ...color, opacity },
+        font: { color: fontColor, size: 12, face: 'Inter' },
+        title: node.data?.full_text || node.data?.description || node.label, // Tooltip text on hover
+        shadow: { enabled: true, color: 'rgba(0,0,0,0.4)', size: 10 }
+      };
+    });
+  };
+
+  /**
+   * Helper function to style edges (connecting lines).
+   * It colors the edges green for VERIFIED or red for REFUTED.
+   */
+  const processEdges = (rawEdges: GraphEdge[], filter: string) => {
+    return rawEdges.map(edge => {
+      let color = { color: '#475569', opacity: 1.0 }; // Default Slate Gray
+      
+      // Color-code the edges connecting claims to trusted sources
+      if (edge.type === 'verified_by') {
+        color = { color: '#059669', opacity: 1.0 }; // Emerald Green
+      } else if (edge.type === 'refuted_by') {
+        color = { color: '#e11d48', opacity: 1.0 }; // Rose Red
+      }
+
+      // Dim edges if a specific filter is active to keep focus on the highlighted nodes
+      if (filter !== 'ALL') {
+        color.opacity = 0.2;
+      }
+
+      // Return vis.js formatted edge object
+      return {
+        id: edge.id,
+        from: edge.source,
+        to: edge.target,
+        label: edge.label,
+        color: color,
+        font: { color: '#94a3b8', size: 10, align: 'middle' },
+        arrows: { to: { enabled: true, scaleFactor: 0.5 } }, // Add an arrowhead
+        smooth: { type: 'continuous' } // Curve the lines slightly for aesthetic appeal
+      };
+    });
+  };
+
+  /**
+   * React useEffect Hook:
+   * This runs automatically whenever the `nodes`, `edges`, or `selectedFilter` props change.
+   * It takes our processed nodes/edges and mounts the physics-enabled canvas chart.
+   */
   useEffect(() => {
     if (!containerRef.current) return;
 
-    // Filter nodes based on selected filter
-    const filteredNodes = nodes.filter((n) => {
-      if (selectedFilter === 'ALL') return true;
-      if (n.type === 'claim') {
-        return n.data.verification_status === selectedFilter;
-      }
-      return true;
-    });
+    const processedNodes = processNodes(nodes, selectedFilter);
+    const processedEdges = processEdges(edges, selectedFilter);
 
-    const formattedNodes: VisNode[] = filteredNodes.map((n) => {
-      let color = { background: '#6366f1', border: '#4f46e5' }; // default indigo
-      let shape = 'dot';
-      let size = 20;
+    // Graph Data Object
+    const data = {
+      nodes: processedNodes,
+      edges: processedEdges
+    };
 
-      if (n.type === 'video') {
-        color = { background: '#8b5cf6', border: '#7c3aed' }; // purple
-        shape = 'diamond';
-        size = 30;
-      } else if (n.type === 'claim') {
-        const status = n.data.verification_status;
-        if (status === 'VERIFIED') color = { background: '#10b981', border: '#059669' }; // emerald
-        else if (status === 'CONTRADICTED') color = { background: '#f43f5e', border: '#e11d48' }; // rose
-        else color = { background: '#f59e0b', border: '#d97706' }; // amber
-        shape = 'ellipse';
-        size = 24;
-      } else if (n.type === 'entity') {
-        color = { background: '#3b82f6', border: '#2563eb' }; // blue
-        shape = 'box';
-        size = 18;
-      } else if (n.type === 'trusted_source') {
-        color = { background: '#14b8a6', border: '#0d9488' }; // teal
-        shape = 'star';
-        size = 28;
-      }
-
-      return {
-        id: n.id,
-        label: n.label,
-        color: {
-          background: color.background,
-          border: color.border,
-          highlight: { background: '#ffffff', border: color.border }
-        },
-        shape,
-        size,
-        font: { color: '#f8fafc', size: 12, face: 'Plus Jakarta Sans' },
-        margin: { top: 10, right: 10, bottom: 10, left: 10 }
-      };
-    });
-
-    const visNodes = new DataSet<VisNode>(formattedNodes);
-
-    const validNodeIds = new Set(filteredNodes.map((n) => n.id));
-    const filteredEdges = edges.filter(
-      (e) => validNodeIds.has(e.source) && validNodeIds.has(e.target)
-    );
-
-    const formattedEdges: VisEdge[] = filteredEdges.map((e) => ({
-      id: e.id,
-      from: e.source,
-      to: e.target,
-      label: e.label,
-      font: { color: '#94a3b8', size: 10, align: 'horizontal' },
-      color: { color: '#475569', highlight: '#818cf8' },
-      arrows: { to: { enabled: true, scaleFactor: 0.7 } },
-      smooth: true
-    }));
-
-    const visEdges = new DataSet<VisEdge>(formattedEdges);
-
-    const data = { nodes: visNodes, edges: visEdges };
-    const options = {
+    // Graph Configuration Options
+    const options: Options = {
+      // Configuration for the physics engine (makes nodes float and repel each other)
       physics: {
-        solver: 'forceAtlas2Based',
         forceAtlas2Based: {
-          gravitationalConstant: -50,
+          gravitationalConstant: -100, // Repulsion force
           centralGravity: 0.01,
-          springLength: 100,
+          springLength: 150,
           springConstant: 0.08
         },
+        maxVelocity: 50,
+        solver: 'forceAtlas2Based',
+        timestep: 0.35,
         stabilization: { iterations: 150 }
       },
       interaction: {
-        hover: true,
-        tooltipDelay: 200,
-        zoomView: true
+        hover: true, // Show tooltips
+        zoomView: true, // Allow mouse scroll zooming
+        dragView: true  // Allow canvas panning
       }
     };
 
-    const network = new VisNetwork(containerRef.current, data, options);
+    // Instantiate and draw the Network Graph inside the target div
+    networkRef.current = new Network(containerRef.current, data, options);
 
-    network.on('selectNode', (params) => {
-      const nodeId = params.nodes[0];
-      const found = nodes.find((n) => n.id === nodeId);
-      if (found) setSelectedNode(found);
-    });
-
-    network.on('deselectNode', () => {
-      setSelectedNode(null);
-    });
-
+    // Cleanup Function: destroy the graph instance when the component unmounts to prevent memory leaks
     return () => {
-      network.destroy();
+      if (networkRef.current) {
+        networkRef.current.destroy();
+      }
     };
   }, [nodes, edges, selectedFilter]);
 
   return (
-    <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 shadow-xl relative">
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
-        <div>
-          <h3 className="text-lg font-bold text-white flex items-center gap-2">
-            <Network className="w-5 h-5 text-indigo-400" />
-            <span>Interactive Knowledge Graph</span>
-          </h3>
-          <p className="text-xs text-slate-400">
-            Node-edge network connecting Video → Extracted Claims → Named Entities → Trusted Sources.
-          </p>
-        </div>
-
-        {/* Legend */}
-        <div className="flex items-center space-x-3 text-xs bg-slate-950/80 px-3 py-1.5 rounded-xl border border-slate-800">
-          <div className="flex items-center space-x-1">
-            <span className="w-3 h-3 rounded-full bg-purple-500 inline-block" />
-            <span className="text-slate-300">Video</span>
-          </div>
-          <div className="flex items-center space-x-1">
-            <span className="w-3 h-3 rounded-full bg-emerald-500 inline-block" />
-            <span className="text-slate-300">Verified Claim</span>
-          </div>
-          <div className="flex items-center space-x-1">
-            <span className="w-3 h-3 rounded-full bg-rose-500 inline-block" />
-            <span className="text-slate-300">Refuted</span>
-          </div>
-          <div className="flex items-center space-x-1">
-            <span className="w-3 h-3 rounded-full bg-blue-500 inline-block" />
-            <span className="text-slate-300">Entity</span>
-          </div>
-          <div className="flex items-center space-x-1">
-            <span className="w-3 h-3 rounded-full bg-teal-400 inline-block" />
-            <span className="text-slate-300">Trusted Source</span>
-          </div>
+    <div className="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden shadow-xl backdrop-blur-sm">
+      <div className="p-4 border-b border-slate-800 bg-slate-900/80 flex items-center justify-between">
+        <h3 className="font-semibold text-slate-200">Interactive Knowledge Graph</h3>
+        <div className="flex gap-4 text-[10px] uppercase font-bold text-slate-500">
+          <span className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-indigo-500"></div> Video Target</span>
+          <span className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-slate-500"></div> Extracted Entity</span>
+          <span className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-sky-500"></div> Trusted Source</span>
         </div>
       </div>
-
-      <div
-        ref={containerRef}
-        className="w-full h-[450px] bg-slate-950 rounded-xl border border-slate-800/80 relative"
+      
+      {/* Target Canvas Div where vis-network injects the HTML5 Canvas */}
+      <div 
+        ref={containerRef} 
+        className="w-full bg-slate-950/50"
+        style={{ height: '500px' }} 
       />
-
-      {/* Node Inspector Drawer */}
-      {selectedNode && (
-        <div className="mt-4 p-4 bg-slate-950 border border-indigo-500/40 rounded-xl flex items-start justify-between gap-4 animate-fadeIn">
-          <div>
-            <div className="flex items-center space-x-2 mb-1">
-              <span className="text-xs uppercase font-bold tracking-widest px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                {selectedNode.type}
-              </span>
-              <h4 className="font-bold text-white text-sm">{selectedNode.label}</h4>
-            </div>
-            {selectedNode.data.full_text && (
-              <p className="text-xs text-slate-300 mb-1">"{selectedNode.data.full_text}"</p>
-            )}
-            {selectedNode.data.evidence && (
-              <p className="text-xs text-emerald-400 font-medium">
-                Evidence: {selectedNode.data.evidence}
-              </p>
-            )}
-            {selectedNode.data.description && (
-              <p className="text-xs text-slate-400">Context: {selectedNode.data.description}</p>
-            )}
-          </div>
-          <button
-            onClick={() => setSelectedNode(null)}
-            className="text-xs text-slate-400 hover:text-white px-2 py-1 bg-slate-800 rounded"
-          >
-            Close
-          </button>
-        </div>
-      )}
     </div>
   );
 };

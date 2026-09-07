@@ -8,23 +8,37 @@ interface VideoSearchProps {
 }
 
 export const VideoSearch: React.FC<VideoSearchProps> = ({ onSelectVideo, isAnalyzing }) => {
+  // State to hold what the user types in the search bar
   const [query, setQuery] = useState('');
+  
+  // State to track if the search API call is running
   const [isSearching, setIsSearching] = useState(false);
+  
+  // State to store the array of videos returned by the backend
   const [videos, setVideos] = useState<YouTubeVideo[]>([]);
+  
+  // Track if the user has performed at least one search
   const [hasSearched, setHasSearched] = useState(false);
 
+  /**
+   * Handles the search form submission.
+   * Calls our Python backend `/api/search` endpoint.
+   */
   const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!query.trim()) return;
+    e.preventDefault(); // Prevents the browser page from refreshing
+    if (!query.trim()) return; // Don't search if the input is empty
     
     setIsSearching(true);
     try {
-      const res = await fetch('/api/search', {
+      // Send the query to the FastAPI backend
+      const API_BASE = import.meta.env.VITE_API_URL || '';
+      const res = await fetch(`${API_BASE}/api/search`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: query.trim(), max_results: 6 })
       });
       if (res.ok) {
+        // Parse the results and update the UI
         const data = await res.json();
         setVideos(data.results || []);
         setHasSearched(true);
@@ -32,10 +46,14 @@ export const VideoSearch: React.FC<VideoSearchProps> = ({ onSelectVideo, isAnaly
     } catch (err) {
       console.error('Search failed:', err);
     } finally {
-      setIsSearching(false);
+      setIsSearching(false); // Stop the loading spinner
     }
   };
 
+  /**
+   * A helper function to load pre-configured demo videos.
+   * Useful for testing the NLP parser when no API key is available.
+   */
   const handleQuickLoad = () => {
     setQuery('Quantum Computing Fusion');
     handleSearch({ preventDefault: () => {} } as React.FormEvent);
@@ -43,6 +61,8 @@ export const VideoSearch: React.FC<VideoSearchProps> = ({ onSelectVideo, isAnaly
 
   return (
     <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 shadow-xl backdrop-blur-sm">
+      
+      {/* Header Text */}
       <div className="max-w-3xl mx-auto text-center mb-6">
         <h2 className="text-2xl font-bold text-white mb-2">
           Search & Select YouTube Video for Credibility Analysis
@@ -52,6 +72,7 @@ export const VideoSearch: React.FC<VideoSearchProps> = ({ onSelectVideo, isAnaly
         </p>
       </div>
 
+      {/* Search Input Form */}
       <form onSubmit={handleSearch} className="max-w-2xl mx-auto mb-6 flex gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-4 top-3.5 w-5 h-5 text-slate-400" />
@@ -63,6 +84,8 @@ export const VideoSearch: React.FC<VideoSearchProps> = ({ onSelectVideo, isAnaly
             className="w-full pl-12 pr-4 py-3 bg-slate-950 border border-slate-700/80 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
           />
         </div>
+        
+        {/* Search Submit Button */}
         <button
           type="submit"
           disabled={isSearching || isAnalyzing}
@@ -82,6 +105,7 @@ export const VideoSearch: React.FC<VideoSearchProps> = ({ onSelectVideo, isAnaly
         </button>
       </form>
 
+      {/* Show the Quick Load demo button if they haven't searched yet */}
       {!hasSearched && (
         <div className="flex justify-center mb-4">
           <button
@@ -94,6 +118,7 @@ export const VideoSearch: React.FC<VideoSearchProps> = ({ onSelectVideo, isAnaly
         </div>
       )}
 
+      {/* Render the Grid of Video Result Cards */}
       {videos.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
           {videos.map((vid) => (
@@ -102,6 +127,7 @@ export const VideoSearch: React.FC<VideoSearchProps> = ({ onSelectVideo, isAnaly
               className="bg-slate-950/80 border border-slate-800 hover:border-indigo-500/50 rounded-xl overflow-hidden group flex flex-col justify-between transition-all duration-300 hover:shadow-lg hover:shadow-indigo-500/10"
             >
               <div>
+                {/* Thumbnail Image */}
                 <div className="relative aspect-video overflow-hidden bg-slate-900">
                   <img
                     src={vid.thumbnail}
@@ -114,6 +140,7 @@ export const VideoSearch: React.FC<VideoSearchProps> = ({ onSelectVideo, isAnaly
                   </span>
                 </div>
 
+                {/* Video Title and Description */}
                 <div className="p-4">
                   <h3 className="font-semibold text-white text-sm line-clamp-2 mb-2 group-hover:text-indigo-300 transition-colors">
                     {vid.title}
@@ -124,6 +151,7 @@ export const VideoSearch: React.FC<VideoSearchProps> = ({ onSelectVideo, isAnaly
                 </div>
               </div>
 
+              {/* Action Button: Trigger the analysis pipeline for this specific video */}
               <div className="p-4 pt-0">
                 <button
                   onClick={() => onSelectVideo(vid)}

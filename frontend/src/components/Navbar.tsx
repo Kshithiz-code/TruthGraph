@@ -1,40 +1,36 @@
 import React from 'react';
-import { Network, ShieldCheck, Sparkles } from 'lucide-react';
+import { Activity, ShieldCheck, Network } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
   return (
-    <header className="sticky top-0 z-50 backdrop-blur-md bg-slate-900/80 border-b border-slate-800/80 px-6 py-4">
-      <div className="max-w-7xl mx-auto flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-          <div className="bg-gradient-to-tr from-indigo-600 to-violet-500 p-2.5 rounded-xl shadow-lg shadow-indigo-500/20 text-white">
-            <Network className="w-6 h-6" />
+    <nav className="border-b border-slate-800 bg-slate-950/80 backdrop-blur-md sticky top-0 z-50">
+      <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+        
+        {/* Logo and Brand Name */}
+        <div className="flex items-center gap-3">
+          <div className="bg-indigo-600 p-2 rounded-lg shadow-lg shadow-indigo-500/20">
+            <Activity className="w-5 h-5 text-white" />
           </div>
           <div>
-            <div className="flex items-center space-x-2">
-              <span className="font-extrabold text-xl tracking-tight bg-gradient-to-r from-white via-indigo-100 to-indigo-400 bg-clip-text text-transparent">
-                TruthGraph
-              </span>
-              <span className="text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                CIA3 v1.0
-              </span>
-            </div>
-            <p className="text-xs text-slate-400 font-medium">
-              Credibility & Knowledge-Graph Analysis for YouTube Videos
-            </p>
+            <h1 className="text-xl font-bold bg-gradient-to-r from-indigo-400 to-sky-400 bg-clip-text text-transparent tracking-tight">
+              TruthGraph
+            </h1>
           </div>
         </div>
 
-        <div className="hidden sm:flex items-center space-x-4">
-          <div className="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-slate-800/60 border border-slate-700/60 text-xs text-slate-300">
-            <ShieldCheck className="w-4 h-4 text-emerald-400" />
-            <span>Curated Trusted Graph Active</span>
+        {/* Feature Badges showcasing the 3 core technologies used */}
+        <div className="hidden md:flex items-center gap-6">
+          <div className="flex items-center gap-2 text-xs font-medium text-slate-400">
+            <Network className="w-4 h-4 text-sky-500" />
+            <span>Knowledge Graph</span>
           </div>
-          <div className="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-indigo-950/40 border border-indigo-800/40 text-xs text-indigo-300">
-            <Sparkles className="w-4 h-4 text-indigo-400" />
-            <span>Gemini AI extraction</span>
+          <div className="flex items-center gap-2 text-xs font-medium text-slate-400">
+            <ShieldCheck className="w-4 h-4 text-emerald-500" />
+            <span>Fact-Check Matrix</span>
           </div>
         </div>
+        
       </div>
-    </header>
+    </nav>
   );
 };

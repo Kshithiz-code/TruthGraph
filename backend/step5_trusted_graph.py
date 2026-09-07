@@ -1,6 +1,10 @@
 from typing import Dict, Any, List
 
+# This represents our "Source of Truth" database.
+# In a full-scale production system, this would be a real graph database (like Neo4j) continuously updated from fact-checking APIs.
+# For this project, we are mocking a curated reference graph containing verified facts from reputable institutions.
 TRUSTED_REFERENCE_GRAPH = {
+    # 'nodes' represent the authoritative organizations or journals providing the facts.
     "nodes": [
         {
             "id": "ts_nrel",
@@ -52,6 +56,9 @@ TRUSTED_REFERENCE_GRAPH = {
             "trust_score": 0.95
         }
     ],
+    
+    # 'verified_facts' represent specific claims that have already been evaluated and ruled on by the trusted sources.
+    # Each fact contains keywords used for matching against the YouTube video's claims.
     "verified_facts": [
         {
             "fact_id": "fact_1",
@@ -70,7 +77,7 @@ TRUSTED_REFERENCE_GRAPH = {
         {
             "fact_id": "fact_3",
             "keywords": ["lk-99", "lk99", "superconductor", "room-temperature"],
-            "status": "CONTRADICTED",
+            "status": "CONTRADICTED", # This indicates the claim in the video is actually FALSE.
             "trusted_source": "ts_nature",
             "evidence": "Replication by Max Planck Institute confirmed LK-99 is a ferromagnetic insulator due to Cu2S impurities, not a superconductor."
         },
@@ -108,5 +115,6 @@ TRUSTED_REFERENCE_GRAPH = {
 def get_trusted_reference_graph() -> Dict[str, Any]:
     """
     FR5: Load and maintain a curated trusted reference graph.
+    This function simply returns the trusted dataset so the matcher can use it.
     """
     return TRUSTED_REFERENCE_GRAPH

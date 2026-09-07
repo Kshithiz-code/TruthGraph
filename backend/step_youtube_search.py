@@ -3,9 +3,11 @@ import re
 import requests
 from typing import List, Dict, Any
 
+# Load the YouTube API key from the environment variables (e.g., from the .env file)
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY", "")
 
-# Sample mock YouTube videos for instant out-of-the-box demo without API key
+# We define a list of mock (demo) YouTube videos. 
+# This ensures that even if the API key is missing or fails, the application still works perfectly for the CIA3 demo.
 MOCK_VIDEOS = [
     {
         "video_id": "dQw4w9WgXcQ",
@@ -44,12 +46,15 @@ MOCK_VIDEOS = [
 def search_youtube_videos(query: str, max_results: int = 6) -> List[Dict[str, Any]]:
     """
     FR1: Search YouTube videos via YouTube Data API v3 or fallback to curated demo dataset.
-    Also handles direct YouTube URL inputs.
+    This function processes the user's search query and returns a list of video objects.
     """
-    # Check if user pasted a direct YouTube URL
+    
+    # 1. Check if the user pasted a direct YouTube URL instead of a search term.
+    # The regex looks for the unique 11-character video ID in standard YouTube links.
     url_match = re.search(r'(?:v=|\/)([0-9A-Za-z_-]{11})', query)
     if url_match:
         video_id = url_match.group(1)
+        # If it's a URL, return a custom video object representing that specific video so it can be analyzed.
         return [{
             "video_id": video_id,
             "title": f"Custom Video (ID: {video_id})",
@@ -59,6 +64,7 @@ def search_youtube_videos(query: str, max_results: int = 6) -> List[Dict[str, An
             "description": "Video loaded directly from URL. Click Analyze Credibility to fetch and analyze its transcript."
         }]
 
+    # 2. Try to perform a real YouTube Search using the Data API v3 if the key is provided.
     if YOUTUBE_API_KEY and YOUTUBE_API_KEY != "your_youtube_api_key_here":
         try:
             url = "https://www.googleapis.com/youtube/v3/search"
@@ -69,10 +75,12 @@ def search_youtube_videos(query: str, max_results: int = 6) -> List[Dict[str, An
                 "maxResults": max_results,
                 "key": YOUTUBE_API_KEY
             }
+            # Send HTTP GET request to YouTube API
             resp = requests.get(url, params=params, timeout=5)
             if resp.status_code == 200:
                 data = resp.json()
                 results = []
+                # Loop through the API results and format them into our standardized dictionary structure
                 for item in data.get("items", []):
                     snippet = item.get("snippet", {})
                     results.append({
@@ -86,8 +94,12 @@ def search_youtube_videos(query: str, max_results: int = 6) -> List[Dict[str, An
                 if results:
                     return results
         except Exception as e:
+            # If the API call fails (e.g., network error or invalid key), we print the error and continue to the fallback.
             print(f"[YouTube Search] API call failed: {e}. Falling back to sample dataset.")
 
-    # Filter mock videos by query if relevant, or return all
+    # 3. Fallback Mechanism: If no API key is provided (or if the API fails), filter the mock demo videos.
+    # We check if the user's search query text appears in either the title or description of our mock videos.
     filtered = [v for v in MOCK_VIDEOS if query.lower() in v["title"].lower() or query.lower() in v["description"].lower()]
+    
+    # Return the filtered mock videos. If nothing matches, just return all mock videos so the user has something to click on.
     return filtered if filtered else MOCK_VIDEOS

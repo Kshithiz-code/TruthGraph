@@ -3,14 +3,18 @@ from typing import Dict, Any, List
 def build_video_knowledge_graph(claims: List[Dict[str, Any]], entities: List[Dict[str, Any]], video_info: Dict[str, Any]) -> Dict[str, Any]:
     """
     FR4: Construct a knowledge graph linking claims, entities, and video context.
+    This function takes the raw lists of claims and entities and converts them into a Graph data structure
+    (Nodes and Edges) which is necessary for interactive visualizations and relational matching.
     """
     nodes = []
     edges = []
     
+    # Extract basic info about the video
     video_id = video_info.get("video_id", "v1")
     video_title = video_info.get("title", "Selected Video")
     
-    # Root Video Node
+    # 1. Create the Root Video Node
+    # Every graph starts with a central node representing the YouTube video itself.
     video_node_id = f"video_{video_id}"
     nodes.append({
         "id": video_node_id,
@@ -23,11 +27,13 @@ def build_video_knowledge_graph(claims: List[Dict[str, Any]], entities: List[Dic
         }
     })
     
-    # Entity Nodes
+    # 2. Create the Entity Nodes
+    # We create a dictionary to easily look up entity IDs later when building connections (edges).
     entity_id_map = {}
     for ent in entities:
         ent_id = ent.get("id", f"ent_{ent['name']}")
         entity_id_map[ent["name"].lower()] = ent_id
+        
         nodes.append({
             "id": ent_id,
             "label": ent["name"],
@@ -39,9 +45,11 @@ def build_video_knowledge_graph(claims: List[Dict[str, Any]], entities: List[Dic
             }
         })
     
-    # Claim Nodes & Edges
+    # 3. Create Claim Nodes and Build Relational Edges
     for claim in claims:
         c_id = claim["id"]
+        
+        # Add the Claim node
         nodes.append({
             "id": c_id,
             "label": claim["text"][:40] + "...",
@@ -55,7 +63,8 @@ def build_video_knowledge_graph(claims: List[Dict[str, Any]], entities: List[Dic
             }
         })
         
-        # Edge: Video -> Claim (makes_claim)
+        # Edge Type A: Video -> Claim
+        # Draw an edge indicating that the Video "makes" this particular Claim
         edges.append({
             "id": f"edge_{video_node_id}_{c_id}",
             "source": video_node_id,
@@ -64,10 +73,13 @@ def build_video_knowledge_graph(claims: List[Dict[str, Any]], entities: List[Dic
             "type": "makes_claim"
         })
         
-        # Edge: Claim -> Entity (mentions_entity)
+        # Edge Type B: Claim -> Entity
+        # Draw an edge linking the Claim to the specific Entity it references
         subject = claim.get("subject", "").lower()
         matched = False
+        
         for ent_name, ent_id in entity_id_map.items():
+            # If the entity name appears in the claim text or subject, connect them
             if ent_name in subject or ent_name in claim["text"].lower():
                 edges.append({
                     "id": f"edge_{c_id}_{ent_id}",
@@ -78,7 +90,7 @@ def build_video_knowledge_graph(claims: List[Dict[str, Any]], entities: List[Dic
                 })
                 matched = True
         
-        # Connect to first entity if no exact match
+        # Fallback: If we couldn't precisely match the subject to an entity, just connect it to the first available entity
         if not matched and nodes:
             first_ent = [n for n in nodes if n["type"] == "entity"]
             if first_ent:
@@ -90,6 +102,7 @@ def build_video_knowledge_graph(claims: List[Dict[str, Any]], entities: List[Dic
                     "type": "references"
                 })
 
+    # Return the assembled Knowledge Graph
     return {
         "nodes": nodes,
         "edges": edges,
